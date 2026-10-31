@@ -45,7 +45,8 @@ Needs clang 20+, CMake 3.25+, Ninja, git, and the SDK's system libraries:
 tools/build_linux.sh            # SDK v0.9.0 + darkuni SDK patches, then the game
 ```
 The first run clones and builds the ReXGlue SDK (v0.9.0 plus the same `rexglue-sdk-builds` patches as the
-Windows package) into `out/linux-deps/` - about 20-30 min; later runs only rebuild the game. Pass another
+Windows package) into `out/linux-deps/`, then this repo's `patches/sdk/` - about 20-30 min; later runs only rebuild the game
+(and the SDK again when `patches/sdk/` changes). Pass another
 folder as the first argument to keep the SDK elsewhere (e.g. one shared with the OutRun recomp); `CC`/`CXX`/`JOBS`
 are honoured. GitHub Actions does the same on Ubuntu (`.github/workflows/build-linux.yml`) and uploads
 `after_burner_climax-linux-amd64.tar.gz`.
@@ -71,10 +72,13 @@ Windows. The folder runs from anywhere (libraries load from next to the executab
   emulation), so the project installs no handler of its own.
 - **Quitting:** use F1 > Quit or the window close button. The process does not exit on SIGTERM
   (`kill`/`timeout`); use `pkill -KILL after_burner_climax` from a shell.
-- **SDK fix:** `tools/sdk-patches/` holds a fix applied on top of darkuni's SDK patches: the SDK's Vulkan
-  shader translator read the texture result exponent (`exp_adjust`) from the wrong fetch-constant word (the
-  LOD bias), so textures with a LOD bias sampled near black. That made the stage 3 desert / stage 4 terrain
-  disappear (black, then cut out by the game's alpha test) and the stage 1 sea dark. D3D12 was not affected.
+- **SDK fixes:** `patches/sdk/` is applied on top of darkuni's SDK patches (the SDK is rebuilt when it changes):
+  - `0001-posix-file-access-mode.patch`: backport of SDK commit 0bd1fd552; files opened read+write were opened
+    write-only on POSIX (same fix as the OutRun recomp, where it broke saves).
+  - `0002-vulkan-tfetch-exp-adjust.patch`: the Vulkan shader translator read the texture result exponent
+    (`exp_adjust`) from the wrong fetch-constant word (the LOD bias), so textures with a LOD bias sampled near
+    black. That made the stage 3 desert / stage 4 terrain disappear (black, then cut out by the game's alpha
+    test) and the stage 1 sea dark. D3D12 was not affected.
 - **VSync:** keep it on. With `vsync = false` the SDK also runs the game's vblank timer at 1000 Hz instead of
   60 Hz, and the game runs many times too fast.
 - **GPU choice:** with more than one Vulkan device, set `vulkan_device` (index, listed in the log) in
