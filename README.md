@@ -25,7 +25,7 @@ assets\
 ```
 
 ## In-game settings (F1 or Esc)
-Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), window size, render resolution, VSync, aspect ratio, texture filtering, audio buffer, keyboard on/off, per-button key rebinding, quit. Saved to `after_burner_climax.toml` next to the exe. F3 = performance overlay. Runs as the full game.
+Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), monitor, window size, render resolution, VSync, aspect ratio, texture filtering, audio buffer, keyboard on/off, launcher on/off, per-button key rebinding, quit. Saved to `after_burner_climax.toml` next to the exe. F3 = performance overlay. Gamepad works in the menu too (B closes it). Runs as the full game.
 
 ### Default keyboard layout
 | Action | Controller | Key |
@@ -38,14 +38,40 @@ Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), window 
 | X / Y | X / Y | Q / W |
 | Start / Back | Start / Back | Enter / Backspace |
 
+## Launcher
+Before the game starts, a launcher screen in the game window sets up the display and controls, then **Start game**
+runs it. Same look and rows as the F1 menu, plus:
+
+- **Monitor** (with more than one): the game window moves there live; fullscreen follows.
+- **Render resolution: Auto** (default): picks the internal resolution from the monitor's native resolution
+  (720p-class 1x, 1080p/1440p 2x, 4K 3x; Steam Deck 800p stays 1x). Or a fixed 1x / 2x / 3x.
+- **Launcher at start**: Off goes straight into the game next time (turn it back on from F1). One-off skip:
+  `after_burner_climax --recomp_launcher=false`.
+
+It runs from ReXGlue's `OnFinalizePaths` hook: the window, GPU presenter and ImGui are up but the runtime is not
+built yet, so render resolution and audio buffer changes apply when you press Start, without a restart.
+Keyboard, mouse or gamepad (d-pad / left stick, A or Start = select, B = back), so it works on a Steam Deck too.
+
+New installs start **fullscreen** (borderless, at the monitor's native resolution) with Auto render resolution;
+existing `after_burner_climax.toml` settings are kept.
+
+## Saves
+Saves, profile, achievements and the shader cache are kept in `userdata/` next to the exe, so the whole game
+folder is portable (copy it and your progress comes along). On the first start of this build an existing
+per-user folder from earlier builds (`Documents\after_burner_climax` on Windows, `~/.local/share/after_burner_climax`
+on Linux) is copied into `userdata/`; the original is left in place. If the game folder is not writable (e.g.
+Program Files) the per-user folder is used as before. `--user_data_root=<dir>` overrides both.
+
 ## Layout
 | Path | What |
 |---|---|
 | `after_burner_climax_manifest.toml` | ReXGlue project manifest (codegen input) |
 | `after_burner_climax_overrides.toml` | Missed branch targets + pointer-only functions |
 | `generated/` | Recompiled C++ output of `rexglue codegen` |
-| `src/after_burner_climax_app.h` | App class - game folder default, Xenos GPU plugin, full-game license, first-launch defaults, menu/F11 binds |
-| `src/game_menu.*`, `src/game_keys.h` | F1/Esc settings menu and this game's key layout |
+| `src/after_burner_climax_app.h` | App class - game folder default, Xenos GPU plugin, full-game license, first-launch defaults, launcher, menu/F11 binds |
+| `src/game_menu.*`, `src/game_keys.h` | Launcher + F1/Esc settings menu and this game's key layout |
+| `src/portable_data.*` | Saves / profile / shader cache in `userdata/` next to the exe (copies old per-user saves once) |
+| `src/display_setup.*` | Monitor list / native resolution, Auto render resolution, live window move and resize |
 | `tools/` | Package/XEX extraction (STFS, XEX2 basic + LZX), pointer-function scan, label check |
 | `.github/workflows/build-windows.yml` | CI: LLVM + prebuilt SDK (darkuni/rexglue-sdk-builds, v0.9.0-p23) + game; uploads the package, attaches it to releases |
 
