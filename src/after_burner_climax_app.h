@@ -94,6 +94,14 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
       if (!config_path_.empty()) rex::cvar::SaveConfig(config_path_);
     }
     REXLOG_INFO("Audio buffer: {} frames", rex::cvar::Query<int32_t>("audio_maxqframes"));
+    // VSync stays on (not in the menu): the SDK's vsync cvar also paces the
+    // guest vblank (60 Hz on, 1000 Hz off), and the game ticks per vblank, so
+    // with it off the game runs many times too fast.
+    if (!rex::cvar::Query<bool>("vsync")) {
+      rex::cvar::SetFlagByName("vsync", "true");
+      if (!config_path_.empty()) rex::cvar::SaveConfig(config_path_);
+      REXLOG_INFO("VSync forced on (the game's timing depends on it)");
+    }
   }
 
   // Launcher: the window, Vulkan presenter and ImGui exist, the runtime does
