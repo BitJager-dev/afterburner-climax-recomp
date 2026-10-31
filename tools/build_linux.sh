@@ -43,6 +43,12 @@ if [[ ! -f "$SDK_INSTALL/.installed" ]]; then
       fi
       echo "SDK patch: $(basename "$p")"
     done
+    # Linux/Vulkan fixes on top of that (tools/sdk-patches/).
+    for p in "$ROOT"/tools/sdk-patches/*.patch; do
+      [[ -e "$p" ]] || continue
+      git -C "$SDK_SRC" apply --whitespace=nowarn "$p"
+      echo "SDK patch: $(basename "$p")"
+    done
     touch "$SDK_SRC/.abc_patched"
   fi
   cmake -S "$SDK_SRC" -B "$SDK_SRC/out/build/linux-amd64" -G Ninja \
