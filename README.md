@@ -1,6 +1,6 @@
 # After Burner Climax Recompiled
 
-Static recompilation of **After Burner Climax** (Xbox 360 XBLA, SEGA AM2, 2010; Title ID 58410A06, default.xex 1.0.0.0 built 2009-12-21) to native Windows, using the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk) v0.9.0.
+Static recompilation of **After Burner Climax** (Xbox 360 XBLA, SEGA AM2, 2010; Title ID 58410A06, default.xex 1.0.0.0 built 2009-12-21) to native Windows and Linux (Vulkan), using the [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk) v0.9.0.
 
 **No game data is included.** You need your own After Burner Climax XBLA package (the Xbox 360 LIVE file from
 your console's storage).
@@ -23,6 +23,56 @@ assets\
   default.xex
   media\...
 ```
+
+## Linux (native, Vulkan)
+The same recompiled code builds as a native Linux executable. On Linux the SDK's Xenos GPU plugin is
+Vulkan-only (D3D12 is compiled out), so nothing needs picking: the game renders through Vulkan. No Wine/Proton.
+
+**Status:** builds with no source changes to the recompiled code; boots, extracts the package on first start
+and reaches the main menu with correct graphics. Tested on CachyOS (Arch), clang 22, AMD Radeon 8060S (RADV,
+Mesa), KDE Plasma Wayland (through Xwayland), 3440x1440. Not yet tested: NVIDIA, Steam Deck native, full
+playthroughs.
+
+### Build
+Needs clang 20+, CMake 3.25+, Ninja, git, and the SDK's system libraries:
+
+| Distro | Packages |
+|---|---|
+| Arch / CachyOS | `clang cmake ninja git gtk3 libx11 libxcb libxss vulkan-icd-loader alsa-lib libpulse pipewire` |
+| Ubuntu 24.04 | clang-20 (apt.llvm.org), `cmake ninja-build build-essential git libgtk-3-dev libx11-xcb-dev libxss-dev libvulkan-dev libasound2-dev libpulse-dev libpipewire-0.3-dev` |
+
+```
+tools/build_linux.sh            # SDK v0.9.0 + darkuni SDK patches, then the game
+```
+The first run clones and builds the ReXGlue SDK (v0.9.0 plus the same `rexglue-sdk-builds` patches as the
+Windows package) into `out/linux-deps/` - about 20-30 min; later runs only rebuild the game. Pass another
+folder as the first argument to keep the SDK elsewhere (e.g. one shared with the OutRun recomp); `CC`/`CXX`/`JOBS`
+are honoured. GitHub Actions does the same on Ubuntu (`.github/workflows/build-linux.yml`) and uploads
+`after_burner_climax-linux-amd64.tar.gz`.
+
+### Run
+```
+dist-linux/
+  after_burner_climax
+  librexruntime.so
+  librexgpu-xenos.so
+  <your package>   <- the package file (or the 58410A06 folder)
+```
+Put your package next to `after_burner_climax` and start it; the first start makes `assets/` from it, as on
+Windows. The folder runs from anywhere (libraries load from next to the executable). Settings go to
+`after_burner_climax.toml`, logs to `logs/`.
+
+### Linux notes
+- **X11 / Xwayland:** the SDK forces SDL's X11 video driver (its Vulkan presenter uses `VK_KHR_xcb_surface`), so
+  on Wayland desktops it runs through Xwayland. Starting it from a plain TTY/SSH shell needs `DISPLAY` (and
+  `XAUTHORITY`) from your desktop session.
+- **Crashes:** unhandled faults end in a normal core dump (`coredumpctl gdb after_burner_climax`), with
+  `after_burner_climax.map` for recompiled function names. The SDK owns SIGSEGV/SIGILL (guest MMIO traps and SEH
+  emulation), so the project installs no handler of its own.
+- **Quitting:** use F1 > Quit or the window close button. The process does not exit on SIGTERM
+  (`kill`/`timeout`); use `pkill -KILL after_burner_climax` from a shell.
+- **GPU choice:** with more than one Vulkan device, set `vulkan_device` (index, listed in the log) in
+  `after_burner_climax.toml`.
 
 ## In-game settings (F1 or Esc)
 Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), window size, render resolution, VSync, aspect ratio, texture filtering, audio buffer, keyboard on/off, per-button key rebinding, quit. Saved to `after_burner_climax.toml` next to the exe. F3 = performance overlay. Runs as the full game.
@@ -48,6 +98,7 @@ Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), window 
 | `src/game_menu.*`, `src/game_keys.h` | F1/Esc settings menu and this game's key layout |
 | `tools/` | Package/XEX extraction (STFS, XEX2 basic + LZX), pointer-function scan, label check |
 | `.github/workflows/build-windows.yml` | CI: LLVM + prebuilt SDK (darkuni/rexglue-sdk-builds, v0.9.0-p23) + game; uploads the package, attaches it to releases |
+| `tools/build_linux.sh`, `.github/workflows/build-linux.yml` | Linux: SDK + patches + game, staged in `dist-linux/` |
 
 ## Codegen fixes so far
 - `0x824A7C68`, `0x824D9DD8`, `0x82441BA8`, `0x824D92B0`: small thunks reached only by `b` from other functions.

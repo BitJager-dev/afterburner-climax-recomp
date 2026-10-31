@@ -24,3 +24,15 @@ else()
 endif()
 
 rexglue_setup_target(after_burner_climax GPU_PLUGINS xenos)
+
+# Linux: linker map for core-dump addresses, and load the SDK's shared
+# libraries from next to the executable, so the staged dist/ folder runs from
+# anywhere.
+if(NOT WIN32)
+    target_link_options(after_burner_climax PRIVATE "LINKER:-Map=${CMAKE_BINARY_DIR}/after_burner_climax.map")
+    set_target_properties(after_burner_climax PROPERTIES BUILD_RPATH "$ORIGIN")
+    add_custom_command(TARGET after_burner_climax POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:rex::runtime> $<TARGET_FILE_DIR:after_burner_climax>
+        VERBATIM)
+endif()
