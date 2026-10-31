@@ -140,7 +140,7 @@ const char* MainNote(int row, bool launcher) {
     case kRenderRes:
       return launcher ? "Internal rendering resolution. Auto matches your monitor."
                       : "Internal rendering resolution. Applies next launch.";
-    case kVsync: return "Wait for the monitor refresh. Off can tear.";
+    case kVsync: return "Keep On: Off also unlocks the game's 60 Hz timer, so it runs too fast.";
     case kAspect: return "Keep 16:9 adds black bars on other window shapes.";
     case kFiltering: return "Sharper textures seen at an angle.";
     case kAudioBuffer:
