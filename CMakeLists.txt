@@ -17,6 +17,7 @@ set(AFTERBURNERCLIMAX_SOURCES
     src/display_setup.cpp
     src/package_setup.cpp
     src/portable_data.cpp
+    src/debug_rdoc.cpp
 )
 
 if(WIN32)
