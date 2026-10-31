@@ -29,7 +29,7 @@ The same recompiled code builds as a native Linux executable. On Linux the SDK's
 Vulkan-only (D3D12 is compiled out), so nothing needs picking: the game renders through Vulkan. No Wine/Proton.
 
 **Status:** builds with no source changes to the recompiled code; boots, extracts the package on first start
-and reaches the main menu with correct graphics. Tested on CachyOS (Arch), clang 22, AMD Radeon 8060S (RADV,
+and plays (main menu and stages render; see the terrain issue below). Tested on CachyOS (Arch), clang 22, AMD Radeon 8060S (RADV,
 Mesa), KDE Plasma Wayland (through Xwayland), 3440x1440. Not yet tested: NVIDIA, Steam Deck native, full
 playthroughs.
 
@@ -71,11 +71,17 @@ Windows. The folder runs from anywhere (libraries load from next to the executab
   emulation), so the project installs no handler of its own.
 - **Quitting:** use F1 > Quit or the window close button. The process does not exit on SIGTERM
   (`kill`/`timeout`); use `pkill -KILL after_burner_climax` from a shell.
+- **Known issue - missing terrain:** in the desert stage (stage 3) the ground shows as a flat, untextured plane
+  (the terrain mesh is not drawn), at any render resolution. Not fixed by `vulkan_readback_memexport`,
+  `vulkan_readback_resolve` or `async_shader_compilation = false`; `render_target_path_vulkan = "fsi"` makes it
+  worse. Still being investigated (not yet compared with the Windows/D3D12 build).
+- **VSync:** keep it on. With `vsync = false` the SDK also runs the game's vblank timer at 1000 Hz instead of
+  60 Hz, and the game runs many times too fast.
 - **GPU choice:** with more than one Vulkan device, set `vulkan_device` (index, listed in the log) in
   `after_burner_climax.toml`.
 
 ## In-game settings (F1 or Esc)
-Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), monitor, window size, render resolution, VSync, aspect ratio, texture filtering, audio buffer, keyboard on/off, launcher on/off, per-button key rebinding, quit. Saved to `after_burner_climax.toml` next to the exe. F3 = performance overlay. Gamepad works in the menu too (B closes it). Runs as the full game.
+Same menu as the Poker Smash / ReBirth recomps: display mode (also F11), monitor, window size, render resolution, aspect ratio, texture filtering, audio buffer, keyboard on/off, launcher on/off, per-button key rebinding, quit. Saved to `after_burner_climax.toml` next to the exe. F3 = performance overlay. Gamepad works in the menu too (B closes it). VSync is always on: the game's timing depends on it. Runs as the full game.
 
 ### Default keyboard layout
 | Action | Controller | Key |
