@@ -1,12 +1,15 @@
 // after_burner_climax - ReXGlue Recompiled Project
 //
 // App hooks: default paths, GPU plugin, full-game license, first-launch
-// defaults, and the F1/Esc settings menu (src/game_menu.*).
+// defaults, the launcher shown before the game starts, and the F1/Esc
+// settings menu (both src/game_menu.*).
 
 #pragma once
 
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
+#include <optional>
 #include <string>
 
 #include <rex/cvar.h>
@@ -20,9 +23,11 @@
 
 #include <imgui.h>
 
+#include "display_setup.h"
 #include "game_keys.h"
 #include "game_menu.h"
 #include "package_setup.h"
+#include "portable_data.h"
 
 class AfterBurnerClimaxApp : public rex::ReXApp {
  public:
@@ -47,6 +52,8 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
         std::exit(1);
       }
     }
+    // Saves, profile and shader cache in "userdata" next to the exe.
+    UsePortableUserData(paths, "after_burner_climax");
     config_path_ = paths.config_path;
   }
 
@@ -63,10 +70,11 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
       rex::cvar::SetFlagByName("license_mask", "1");
       REXLOG_INFO("License: full game (license_mask=1)");
     }
-    // First launch: windowed, keyboard on, flight key layout. After this
-    // everything comes from after_burner_climax.toml (edited by the F1 menu).
+    // First launch: fullscreen (borderless, at the monitor's own resolution),
+    // 1280x720 for windowed mode, keyboard on, flight key layout. After this
+    // everything comes from after_burner_climax.toml (edited by the launcher / F1 menu).
     if (!rex::cvar::Query<bool>("recomp_defaults_applied")) {
-      rex::cvar::SetFlagByName("fullscreen", "false");
+      rex::cvar::SetFlagByName("fullscreen", "true");
       rex::cvar::SetFlagByName("window_width", "1280");
       rex::cvar::SetFlagByName("window_height", "720");
       rex::cvar::SetFlagByName("mnk_mode", "true");
@@ -86,6 +94,36 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
       if (!config_path_.empty()) rex::cvar::SaveConfig(config_path_);
     }
     REXLOG_INFO("Audio buffer: {} frames", rex::cvar::Query<int32_t>("audio_maxqframes"));
+    // VSync stays on (not in the menu): the SDK's vsync cvar also paces the
+    // guest vblank (60 Hz on, 1000 Hz off), and the game ticks per vblank, so
+    // with it off the game runs many times too fast.
+    if (!rex::cvar::Query<bool>("vsync")) {
+      rex::cvar::SetFlagByName("vsync", "true");
+      if (!config_path_.empty()) rex::cvar::SaveConfig(config_path_);
+      REXLOG_INFO("VSync forced on (the game's timing depends on it)");
+    }
+  }
+
+  // Launcher: the window, Vulkan presenter and ImGui exist, the runtime does
+  // not yet - so the GPU and audio settings picked here apply without a
+  // restart. "Start game" resumes the SDK's startup.
+  std::optional<rex::PathConfig> OnFinalizePaths(
+      const rex::PathConfig& defaults, std::function<void(rex::PathConfig)> resume) override {
+    if (!recomp_ui::GameMenu::LauncherEnabled() || !imgui_drawer()) {
+      recomp_ui::display::ApplyAutoRenderScale();
+      return defaults;
+    }
+    recomp_ui::MenuHost host = MakeMenuHost();
+    host.launcher = true;
+    host.start = [this, defaults, resume] {
+      launcher_open_ = false;
+      recomp_ui::display::ApplyAutoRenderScale();
+      if (!config_path_.empty()) rex::cvar::SaveConfig(config_path_);
+      app_context().CallInUIThreadDeferred([defaults, resume] { resume(defaults); });
+    };
+    launcher_open_ = true;
+    menu_ = new recomp_ui::GameMenu(imgui_drawer(), std::move(host));
+    return std::nullopt;
   }
 
   void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {
@@ -116,6 +154,7 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
 
  private:
   void ToggleMenu() {
+    if (launcher_open_) return;  // the launcher stays until Start / Quit
     if (menu_) {
       if (menu_->capturing()) return;  // Esc cancels the key capture instead
       delete menu_;                    // removes itself from the drawer
@@ -123,6 +162,10 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
       return;
     }
     if (!imgui_drawer()) return;
+    menu_ = new recomp_ui::GameMenu(imgui_drawer(), MakeMenuHost());
+  }
+
+  recomp_ui::MenuHost MakeMenuHost() {
     recomp_ui::MenuHost host;
     host.title = "AFTER BURNER CLIMAX";
     host.config_path = config_path_;
@@ -133,9 +176,10 @@ class AfterBurnerClimaxApp : public rex::ReXApp {
       app_context().CallInUIThreadDeferred([this] { window()->RequestClose(); });
     };
     host.on_closed = [this] { menu_ = nullptr; };
-    menu_ = new recomp_ui::GameMenu(imgui_drawer(), std::move(host));
+    return host;
   }
 
   std::filesystem::path config_path_;
   recomp_ui::GameMenu* menu_ = nullptr;  // owned by the ImGui drawer
+  bool launcher_open_ = false;
 };

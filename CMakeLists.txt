@@ -14,7 +14,9 @@ include(generated/rexglue.cmake)
 set(AFTERBURNERCLIMAX_SOURCES
     src/main.cpp
     src/game_menu.cpp
+    src/display_setup.cpp
     src/package_setup.cpp
+    src/portable_data.cpp
 )
 
 if(WIN32)
